@@ -2,7 +2,7 @@
 import streamlit as st
 
 from common.init import get_question, init
-from common.history import write_history
+from common.display import write_history
 from common.ask import ask
 
 

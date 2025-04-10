@@ -1,7 +1,23 @@
 
-from common.history import add_history, write_chat
-from common.llm import get_response_from_llm
+import time
+from openai import OpenAI
 
+from common.history import add_history
+from common.display import write_chat
+
+
+def get_response_from_llm(message_history):
+  client = OpenAI()
+  response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=message_history,
+    stream=True,
+  )
+
+  for token in response:
+    if token.choices[0].delta.content is not None:
+      yield token.choices[0].delta.content
+      time.sleep(0.05)
 
 def ask(question, message_history):
   if len(message_history) == 0:

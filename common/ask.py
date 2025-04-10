@@ -26,10 +26,10 @@ def ask(question, message_history):
 
   # 사용자 질문 추가 및 즉시 표시
   message_history = add_history(message_history, role="user", content=question)
-  write_chat(role="user", message=message_history[-1]["content"], is_stream=False)
+  write_chat(role="user", message=message_history[-1]["content"])
 
   # LLM 답변 즉시 표시 및 추가
-  response = write_chat(role="assistant", message=get_response_from_llm(message_history), is_stream=True)
+  response = write_chat(role="assistant", message=get_response_from_llm(message_history))
   message_history = add_history(message_history, role="assistant", content=response)
 
   return message_history

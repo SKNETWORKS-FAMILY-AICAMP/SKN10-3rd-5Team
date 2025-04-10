@@ -7,15 +7,17 @@ from common.ask import ask
 
 
 def app():
-  init()
+    init()
 
-  write_history(st.session_state.messages)
+    write_history(st.session_state.messages)
 
-  question = get_question()
-
-  if question:
-    st.session_state.messages = ask(question=question, message_history=st.session_state.messages)
+    cooking_time, cooking_tools, question = get_question()
+    if (cooking_time is None) or (len(cooking_tools) == 0):
+            st.warning("옵션을 선택해주세요.")
+            
+    if question:
+        st.session_state.messages = ask(question=question, message_history=st.session_state.messages)
 
 
 if __name__ == "__main__":
-  app()
+    app()

@@ -1,0 +1,10 @@
+python-dotenv
+streamlit
+streamlit_markdown
+openai
+jupyter
+pandas
+groq
+langchain
+langchain_community
+ollama

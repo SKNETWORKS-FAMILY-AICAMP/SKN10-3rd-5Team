@@ -16,7 +16,12 @@ def app():
             st.warning("옵션을 선택해주세요.")
             
     if question:
-        st.session_state.messages = ask(question=question, message_history=st.session_state.messages)
+        st.session_state.messages = ask(
+            question=question, 
+            message_history=st.session_state.messages,
+            cooking_time=cooking_time,
+            cooking_tools=cooking_tools
+        )
 
 
 if __name__ == "__main__":

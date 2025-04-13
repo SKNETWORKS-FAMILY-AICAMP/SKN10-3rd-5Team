@@ -6,5 +6,9 @@ jupyter
 pandas
 groq
 langchain
+langchain-openai
+langchain-groq
+langchain-core
 langchain_community
 ollama
+faiss-cpu

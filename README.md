@@ -202,7 +202,7 @@ uv pip install -r requirements.txt
 
 ### 🧠 3. Ollama 모델 설치
 
-Hugging Face에 등록된 모델을 사용하기 위해 `.gguf` 파일을 다운로드하여 Ollama에 설치한다.
+Hugging Face에 등록된 모델을 사용하기 위해 `.gguf` 파일을 다운로드하여 Ollama에 설치한다.<br/>
 자세한 설치 방법은 `10-1`을 참고한다.
 
 ### 🚀 4. 실행
@@ -211,7 +211,6 @@ Streamlit 등을 사용하는 경우:
 ```bash
 streamlit run app.py
 ```
----
 
 <br>
 
@@ -225,17 +224,17 @@ streamlit run app.py
 
 ### 🗂️ 2. Modelfile을 통한 모델 설치
 
-**📁 2-1. 파일 위치 지정**
+#### 📁 2-1. 파일 위치 지정
 
 Hugging Face에서 다운로드한 `.gguf` 파일과 `Modelfile`을 동일한 디렉토리에 위치시킨다.
 
-<img src='imgs/2_file_location.png' width=800>
+<img src='imgs/2_file_location.png' width=600>
 
-**📝 2-2. Modelfile 수정**
+#### 📝 2-2. Modelfile 수정
 
 Modelfile 내 `FROM` 구문을 다운로드한 `.gguf` 파일 이름으로 수정한다.
 
-```python
+```dockerfile
 FROM gemma3-miniproj3-finetune-model2.Q8_0.gguf
 
 TEMPLATE """{{- if .System }}
@@ -255,7 +254,7 @@ PARAMETER stop <s>
 PARAMETER stop </s>
 ```
 
-**⚙️ 2-3. Powershell을 통한 모델 추가**
+#### ⚙️ 2-3. Powershell을 통한 모델 추가
 
 다음 명령어를 통해 Local 환경에 모델을 설치한다.
 
@@ -266,4 +265,4 @@ ollama create gemma3-recipe -f Modelfile
 
 설치가 완료되면 `ollama list` 명령어로 모델이 추가된 것을 확인할 수 있다.
 
-<img src='imgs\3_ollama_list.png' width=800>
+<img src='imgs\3_ollama_list.png' width=600>

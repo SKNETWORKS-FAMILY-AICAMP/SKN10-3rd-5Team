@@ -186,7 +186,7 @@
 
 이 챗봇 서비스를 로컬에서 실행하려면 아래의 단계를 따라야 한다.
 
-### 📦 1. 프로젝트 클론
+### 📁 1. 프로젝트 클론
 
 ```bash
 git clone https://github.com/your-username/recipe-chatbot.git
@@ -200,15 +200,10 @@ uv venv .venv -p [파이썬 버전 ex) 3.12]
 uv pip install -r requirements.txt
 ```
 
-### 🔐 3. 환경 변수 설정 (.env 파일 생성)
+### 🧠 3. Ollama 모델 설치
 
-`.env` 파일을 프로젝트 루트 디렉터리에 생성하고, 다음 내용을 추가해야 한다:
-
-```env
-OPENAI_API_KEY=[your_openai_api_key_here]
-```
-
-> ✅ `OPENAI_API_KEY`는 OpenAI에서 발급받은 개인 키로, GPT 모델 사용을 위해 반드시 필요하다.
+Hugging Face에 등록된 모델을 사용하기 위해 `.gguf` 파일을 다운로드하여 Ollama에 설치한다.
+자세한 설치 방법은 `10-1`을 참고한다.
 
 ### 🚀 4. 실행
 Streamlit 등을 사용하는 경우:
@@ -217,3 +212,58 @@ Streamlit 등을 사용하는 경우:
 streamlit run app.py
 ```
 ---
+
+<br>
+
+## 10-1. Ollama 모델 설치
+
+### 📥 1. `.gguf` 파일 다운로드
+
+[Hugging Face 모델](https://huggingface.co/seungdang/gemma3-miniproj3-finetune-model2-gguf) 페이지에서 `.gguf` 확장자를 가진 파일을 다운로드한다.
+
+<img src='imgs/1_model_download.png' width=800>
+
+### 🗂️ 2. Modelfile을 통한 모델 설치
+
+**📁 2-1. 파일 위치 지정**
+
+Hugging Face에서 다운로드한 `.gguf` 파일과 `Modelfile`을 동일한 디렉토리에 위치시킨다.
+
+<img src='imgs/2_file_location.png' width=800>
+
+**📝 2-2. Modelfile 수정**
+
+Modelfile 내 `FROM` 구문을 다운로드한 `.gguf` 파일 이름으로 수정한다.
+
+```python
+FROM gemma3-miniproj3-finetune-model2.Q8_0.gguf
+
+TEMPLATE """{{- if .System }}
+<s>{{ .System }}</s>
+{{- end }}
+<s>Human:
+{{ .Prompt }}</s>
+<s>Assistant:
+"""
+
+SYSTEM """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."""
+
+PARAMETER temperature 0
+PARAMETER num_predict 3000
+PARAMETER num_ctx 4096
+PARAMETER stop <s>
+PARAMETER stop </s>
+```
+
+**⚙️ 2-3. Powershell을 통한 모델 추가**
+
+다음 명령어를 통해 Local 환경에 모델을 설치한다.
+
+```shell
+cd [.gguf 및 Modelfile 위치]
+ollama create gemma3-recipe -f Modelfile
+```
+
+설치가 완료되면 `ollama list` 명령어로 모델이 추가된 것을 확인할 수 있다.
+
+<img src='imgs\3_ollama_list.png' width=800>

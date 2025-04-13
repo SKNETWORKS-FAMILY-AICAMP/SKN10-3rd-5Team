@@ -8,6 +8,7 @@ from common.ask import ask
 
 def app():
     init()
+    st.title("Chatbot")
 
     write_history(st.session_state.messages)
 

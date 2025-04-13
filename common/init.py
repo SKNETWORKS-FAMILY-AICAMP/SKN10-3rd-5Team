@@ -7,8 +7,6 @@ def init():
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    st.title("Chatbot")
-
 def get_question():
     # 사이드바에 선택박스 추가
     with st.sidebar:

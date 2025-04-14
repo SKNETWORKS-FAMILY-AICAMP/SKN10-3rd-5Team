@@ -18,6 +18,9 @@ class Provider_Ollama(Provider):
         # 선택된 모델로 ChatOllama 인스턴스 생성
         llm = ChatOllama(
             model=self.provider_LLMs[model_name].value[1],
-            model_kwargs={"max_tokens": 1000}
+            model_kwargs={
+                            "max_tokens": 1000,
+                            "temperature": 0.7
+                        }
         )
         return llm

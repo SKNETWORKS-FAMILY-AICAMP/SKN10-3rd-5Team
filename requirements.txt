@@ -12,6 +12,6 @@ langchain-core
 langchain_community
 ollama
 cmake
-llama-cpp-python
+# llama-cpp-python
 huggingface_hub
 faiss-cpu

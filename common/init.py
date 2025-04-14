@@ -1,11 +1,12 @@
 import streamlit as st
 from dotenv import load_dotenv
 
-def init():
+def init(keys=["messages"]):
     load_dotenv()
 
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+    for key in keys:
+        if key not in st.session_state:
+            st.session_state[key] = []
 
 def get_question():
     # 사이드바에 선택박스 추가

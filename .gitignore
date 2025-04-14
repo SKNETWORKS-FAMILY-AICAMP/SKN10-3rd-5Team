@@ -4,3 +4,5 @@ __pycache__
 
 etl/download
 etl/rag/dataset/recipe_faiss
+etl/rag/dataset/recipe_faiss/index.faiss
+etl/rag/dataset/recipe_faiss/index.pkl

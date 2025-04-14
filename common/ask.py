@@ -1,4 +1,3 @@
-
 import time
 import streamlit as st
 
@@ -16,11 +15,13 @@ def get_llm_model():
     return provider("gemma3_4b_q8_recipe")
 
 
-def get_response_from_llm(message_history, cooking_time, cooking_tools, session_id="default"):
+def get_response_from_llm(message_history, cooking_time, cooking_tools, session_id="default", llm_model=None):
     user_message = message_history[-1]["content"]
 
     # RAG 체인을 사용하여 레시피 답변 생성
-    rag_chain = create_rag_chain(get_llm_model(), cooking_time, cooking_tools)
+    if llm_model is None:
+        llm_model = get_llm_model()
+    rag_chain = create_rag_chain(llm_model, cooking_time, cooking_tools)
 
     # 스트리밍 응답 생성
     for token in rag_chain.stream(
@@ -42,7 +43,7 @@ def get_response_from_llm(message_history, cooking_time, cooking_tools, session_
     #     yield token.choices[0].delta.content
     #     time.sleep(0.05)
 
-def ask(question, message_history, cooking_time=None, cooking_tools=None):
+def ask(question, message_history, cooking_time=None, cooking_tools=None, llm_model=None):
   if len(message_history) == 0:
     # 최초 시스템 프롬프트
     message_history.append({"role": "system", "content": "You are a helpful cooking recipe assistant. You must answer in Korean."})
@@ -59,7 +60,7 @@ def ask(question, message_history, cooking_time=None, cooking_tools=None):
   # LLM 답변 즉시 표시 및 추가
   response = write_chat(
     role="assistant",
-    message=get_response_from_llm(message_history, cooking_time, cooking_tools, st.session_state.session_id)  # 세션 ID 전달
+    message=get_response_from_llm(message_history, cooking_time, cooking_tools, st.session_state.session_id, llm_model)  # 세션 ID 전달
   )
   message_history = add_history(message_history, role="assistant", content=response)
 

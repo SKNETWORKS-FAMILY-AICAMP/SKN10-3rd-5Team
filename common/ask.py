@@ -1,38 +1,46 @@
 
 import time
-from openai import OpenAI
 import streamlit as st
 
 from common.history import add_history
 from common.display import write_chat
 from common.rag import create_rag_chain
+from llm.ollama import Provider_Ollama
+
+
+def get_llm_model():
+    # Provider_Ollama 인스턴스 생성
+    provider = Provider_Ollama()
+
+    # 'gemma3_4b_q8_recipe' 모델을 선택하여 ChatOllama 인스턴스를 반환
+    return provider("gemma3_4b_q8_recipe")
 
 
 def get_response_from_llm(message_history, cooking_time, cooking_tools, session_id="default"):
-  user_message = message_history[-1]["content"]
+    user_message = message_history[-1]["content"]
 
-  # RAG 체인을 사용하여 레시피 답변 생성
-  rag_chain = create_rag_chain(cooking_time, cooking_tools)
-  
-  # 스트리밍 응답 생성
-  for token in rag_chain.stream(
-    {"question": user_message},
-    config={"configurable": {"session_id": session_id}},
-  ):
-    yield token
-    time.sleep(0.05)
+    # RAG 체인을 사용하여 레시피 답변 생성
+    rag_chain = create_rag_chain(get_llm_model(), cooking_time, cooking_tools)
 
-  # client = OpenAI()
-  # response = client.chat.completions.create(
-  #   model="gpt-4o-mini",
-  #   messages=message_history,
-  #   stream=True,
-  # )
+    # 스트리밍 응답 생성
+    for token in rag_chain.stream(
+        {"question": user_message},
+        config={"configurable": {"session_id": session_id}},
+    ):
+        yield token
+        time.sleep(0.05)
 
-  # for token in response:
-  #   if token.choices[0].delta.content is not None:
-  #     yield token.choices[0].delta.content
-  #     time.sleep(0.05)
+    # client = OpenAI()
+    # response = client.chat.completions.create(
+    #   model="gpt-4o-mini",
+    #   messages=message_history,
+    #   stream=True,
+    # )
+
+    # for token in response:
+    #   if token.choices[0].delta.content is not None:
+    #     yield token.choices[0].delta.content
+    #     time.sleep(0.05)
 
 def ask(question, message_history, cooking_time=None, cooking_tools=None):
   if len(message_history) == 0:

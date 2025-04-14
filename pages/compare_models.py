@@ -1,10 +1,9 @@
 import streamlit as st
+from langchain_community.chat_models import ChatOllama
+from langchain.schema import HumanMessage, AIMessage
 
 from common.init import init
 from common.display import write_history
-from common.ask import ask
-from common.rag import create_rag_chain
-from llm.ollama import Provider_Ollama
 
 def app():
     st.set_page_config(layout="wide")
@@ -19,41 +18,71 @@ def app():
 
     with col1:
         st.subheader("Gemma3 4b Model")
-        write_history(st.session_state.messages_1)
+        
+        for message in st.session_state.messages_1:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
 
         if question:
-            # 첫 번째 모델 설정
-            provider = Provider_Ollama()
-            model_1 = provider("gemma3_4b_q8")
-            st.session_state.messages_1 = ask(
-                question=question, 
-                message_history=st.session_state.messages_1,
-                llm_model=model_1
+            with st.chat_message("user"):
+                st.write(question)
+
+            model_1 = ChatOllama(
+                model="gemma3-q8",
+                model_kwargs={"max_tokens": 1000},
+                streaming=True
             )
-            # Store messages after ask function
-            msg_1 = st.session_state.messages_1.copy()
-            st.write(msg_1)
-            # Reset session state
-            st.session_state.messages_1 = []
-        
+
+            messages = [HumanMessage(content=question)]
+
+            with st.chat_message("assistant"):
+                response_stream = model_1.stream(messages)
+                full_response = ""
+                response_container = st.empty()
+
+                for chunk in response_stream:
+                    if isinstance(chunk, AIMessage):
+                        full_response += chunk.content
+                        response_container.markdown(full_response)
+
+                response_container.markdown(full_response)
+
+            st.session_state.messages_1.append({"role": "user", "content": question})
+            st.session_state.messages_1.append({"role": "assistant", "content": full_response})
+
     with col2:
         st.subheader("Fine-Tuned Model")
-        write_history(st.session_state.messages_2)
-    
+        
+        for message in st.session_state.messages_2:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
+
         if question:
-            # 두 번째 모델 설정
-            provider = Provider_Ollama()
-            model_2 = provider("gemma3_4b_q8_recipe")
-            st.session_state.messages_2 = ask(
-                question=question, 
-                message_history=st.session_state.messages_2,
-                llm_model=model_2
+            with st.chat_message("user"):
+                st.write(question)
+
+            model_2 = ChatOllama(
+                model="gemma3-recipe",
+                model_kwargs={"max_tokens": 1000},
+                streaming=True
             )
-            # Store messages after ask function
-            msg_2 = st.session_state.messages_2.copy()
-            st.write(msg_2)
-            # Reset session state
-            st.session_state.messages_2 = []
+
+            messages = [HumanMessage(content=question)]
+
+            with st.chat_message("assistant"):
+                response_stream = model_2.stream(messages)
+                full_response = ""
+                response_container = st.empty()
+
+                for chunk in response_stream:
+                    if isinstance(chunk, AIMessage):
+                        full_response += chunk.content
+                        response_container.markdown(full_response)
+
+                response_container.markdown(full_response)
+
+            st.session_state.messages_2.append({"role": "user", "content": question})
+            st.session_state.messages_2.append({"role": "assistant", "content": full_response})
 
 if __name__ == "__main__":
     app()

@@ -3,12 +3,11 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
-from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain.memory import ChatMessageHistory
 import pandas as pd
-import os
+from langchain_openai import ChatOpenAI
 
 # 원본 데이터프레임을 전역 변수로 저장
 original_df = pd.read_csv("./etl/rag/dataset/recipe_data.csv")
@@ -52,20 +51,20 @@ def add_cooking_steps(retrieved_docs):
     return enhanced_docs
 
 # 다중 쿼리 생성 프롬프트
-def get_multi_query_chain(llm):
+def get_multi_query_chain(llm_gpt):
     multi_query_prompt = ChatPromptTemplate.from_messages([
         ("system", """You are an AI language model assistant.
-Your task is to generate three different versions of the given user question to retrieve relevant documents from a vector database.
-By generating multiple perspectives on the user question, your goal is to help the user overcome some of the limitations of the distance-based similarity search.
-Your response should be a list of values separated by new lines, eg: `foo\nbar\nbaz\n`
-Answer in Korean."""),
+            Your task is to generate three different versions of the given user question to retrieve relevant documents from a vector database.
+            By generating multiple perspectives on the user question, your goal is to help the user overcome some of the limitations of the distance-based similarity search.
+            Your response should be a list of values separated by new lines, eg: `foo\nbar\nbaz\n`
+            Answer in Korean."""),
         ("human", "{question}")
     ])
     
     multi_query_chain = (
         {"question": RunnablePassthrough()}
         | multi_query_prompt
-        | llm
+        | llm_gpt
         | StrOutputParser()
     )
     return multi_query_chain
@@ -108,20 +107,56 @@ def convert_messages(message_history):
 chat_histories = {}
 
 # 레시피 RAG 체인 생성
-def create_rag_chain(cooking_time=None, cooking_tools=None):
+def create_rag_chain(llm_model, cooking_time=None, cooking_tools=None):
     # LLM 초기화
-    llm = ChatGroq(model_name="qwen-2.5-32b")
+    llm = llm_model
+    llm_gpt = ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0.7,
+        max_tokens=300
+    )
     
     # 다중 쿼리 체인
-    multi_query_chain = get_multi_query_chain(llm)
+    multi_query_chain = get_multi_query_chain(llm_gpt)
     
     # 조리 시간과 도구를 포함한 프롬프트 템플릿
-    system_message = """당신은 질문-답변(Question-Answering)을 수행하는 레시피 추천 AI 어시스턴트입니다. 당신의 임무는 주어진 문맥(context) 에서 주어진 질문(question) 에 답하는 것입니다.
-검색된 다음 문맥(context) 을 사용하여 질문(question) 에 답하세요.
-문맥(context) 은 레시피에 대한 정보입니다. 주어진 질문(question)에 대해 적절한 레시피를 추천해주세요.
-레시피에 대한 레시피 이름, 재료, 도구, 조리 순서를 답변(Answer) 에 포함하세요.
-반드시 한글로 답변해 주세요.
-"""
+    system_message = """
+        You are tasked with creating a recipe and detailed cooking instructions based on the ingredients provided.
+        The recipe should:
+
+        - Recommend a specific traditional Korean dish that uses the given ingredients.
+        - Include a brief introduction to the dish.
+        - List all ingredients with accurate amounts (e.g., grams, ml, 개).
+        - List all required cooking tools.
+        - Provide step-by-step cooking instructions in numbered format (1, 2, 3, ...).
+        - Clearly state the cooking time and tools used in each step.
+        - Use traditional Korean cooking techniques (e.g., stir-frying, simmering, steaming).
+        - Ensure the instructions are very detailed and easy to follow.
+
+        ### Example Format:
+        요리명: 김치볶음밥\n
+
+        간단 설명: 남은 김치와 밥으로 간편하게 만드는 대표적인 한식 볶음밥입니다.\n
+
+        필요한 재료:
+        - 김치 100g
+        - 밥 1공기
+        - 대파 1/2대
+        - 식용유 1큰술
+        - 간장 1작은술
+        \n
+        필요한 조리도구:
+        - 프라이팬
+        - 주걱
+        \n
+        조리 순서:
+        1. 프라이팬에 식용유 1큰술을 두르고 중불로 달군 후, 송송 썬 대파를 넣고 1분간 볶아 파기름을 냅니다.
+        2. 김치 100g을 넣고 2분간 더 볶아줍니다.
+        3. 밥 1공기를 넣고 간장 1작은술을 둘러 3분간 볶습니다.
+        4. 불을 끄고 접시에 담아 완성합니다.
+
+        **답변은 반드시 한글로 작성해 주세요.**
+    """
     
     # 조리 시간 제약 추가
     if cooking_time:
@@ -134,7 +169,11 @@ def create_rag_chain(cooking_time=None, cooking_tools=None):
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_message),
         ("placeholder", "{chat_history}"),
-        ("human", "문맥(Context): {context}\n\n질문: {question}")
+        ("human", "문맥(Context): {context}\n\n질문: {question}\
+            위 질문에 대해 **요리명을 먼저 얘기하고, 도구, 조리 시간, 재료를 단계별로 포함하여 한국어로 작성**해 주세요.\
+            반드시 요리순서나 요리과정에만 번호를 붙여서 구체적으로 알려주세요.\
+            요리명, 도구, 조리 시간, 재료, 요리순서를 종합적으로 잘 정리해서 구체적으로 답변해주세요."
+        )
     ])
     
     # 검색 함수 정의

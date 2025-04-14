@@ -3,3 +3,7 @@
 __pycache__
 
 etl/download
+etl/fine-tuning/local_model_1
+etl/fine-tuning/local_model_2
+etl/fine-tuning/dataset
+etl/fine-tuning/preprocessed_csv

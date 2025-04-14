@@ -6,6 +6,20 @@ from common.display import write_chat
 from common.rag import create_rag_chain
 from llm.ollama import Provider_Ollama
 
+from langchain_groq import ChatGroq
+from langchain_core.messages import SystemMessage, HumanMessage
+
+# Groq LLM 초기화
+groq_llm = ChatGroq(model_name="qwen-2.5-32b")  # 너가 쓰는 모델로 변경 가능
+
+def is_cooking_related_question_groq(user_input):
+    system_prompt = "이 질문이 요리 레시피로 무엇을 만들 수 있냐는 질문이라면 '요리', 아니면 '일반'이라고만 정확하게 한 단어로 대답해줘. 반드시 한국어로."
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_input)
+    ]
+    response = groq_llm.invoke(messages).content.strip()
+    return response == "요리"
 
 def get_llm_model():
     # Provider_Ollama 인스턴스 생성
@@ -16,8 +30,9 @@ def get_llm_model():
 
 
 def get_response_from_llm(message_history, cooking_time, cooking_tools, session_id="default", llm_model=None):
-    user_message = message_history[-1]["content"]
+  user_message = message_history[-1]["content"]
 
+  if is_cooking_related_question_groq(user_message):
     # RAG 체인을 사용하여 레시피 답변 생성
     if llm_model is None:
         llm_model = get_llm_model()
@@ -31,17 +46,19 @@ def get_response_from_llm(message_history, cooking_time, cooking_tools, session_
         yield token
         time.sleep(0.05)
 
-    # client = OpenAI()
-    # response = client.chat.completions.create(
-    #   model="gpt-4o-mini",
-    #   messages=message_history,
-    #   stream=True,
-    # )
+  else:
+    # ✅ 일반 질문일 경우 → Groq GPT 직접 응답
+    messages = [SystemMessage(content="친절한 요리 AI 어시스턴트입니다. 반드시 한국어로 답하세요.")] + [
+      HumanMessage(content=msg["content"]) if msg["role"] == "user" else
+      SystemMessage(content=msg["content"]) if msg["role"] == "system" else
+      HumanMessage(content=msg["content"])  # assistant도 HumanMessage처럼 처리
+      for msg in message_history if msg["role"] != "system"
+    ]
 
-    # for token in response:
-    #   if token.choices[0].delta.content is not None:
-    #     yield token.choices[0].delta.content
-    #     time.sleep(0.05)
+    for chunk in groq_llm.stream(messages):
+      if hasattr(chunk, "content") and chunk.content:
+        yield chunk.content
+        time.sleep(0.05)
 
 def ask(question, message_history, cooking_time=None, cooking_tools=None, llm_model=None):
   if len(message_history) == 0:
@@ -78,4 +95,4 @@ def ask(question, message_history, cooking_time=None, cooking_tools=None, llm_mo
   )
   message_history = add_history(message_history, role="assistant", content=response)
 
-    return message_history
+  return message_history

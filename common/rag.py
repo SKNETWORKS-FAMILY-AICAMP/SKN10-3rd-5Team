@@ -69,8 +69,42 @@ def get_multi_query_chain(llm_gpt):
     )
     return multi_query_chain
 
+def filter_relevant_docs(docs, query):
+    """LLM을 사용하여 검색된 문서의 관련성을 평가하고 필터링합니다."""
+    if not docs:
+        return []
+    print("필터되기 전:", len(docs))
+    # 필터링을 위한 LLM 초기화 (같은 모델 재사용 가능)
+    llm = ChatGroq(model_name="qwen-2.5-32b")
+    
+    filtered_docs = []
+    
+    for doc in docs:
+        # 관련성 평가를 위한 프롬프트
+        relevance_prompt = ChatPromptTemplate.from_messages([
+            ("system", """당신은 검색 결과의 관련성을 평가하는 AI 어시스턴트입니다.
+            사용자의 질문과 검색된 레시피 문서가 주어집니다.
+            문서가 사용자의 질문 또는 의도와 관련이 있는지 판단해야 합니다.
+            관련성이 높으면 '참'만 답변하고, 관련성이 낮거나 없으면 '거짓'만 답변하세요."""),
+            ("human", f"사용자 질문: {query}\n\n검색된 문서: {doc.page_content}\n\n이 문서는 사용자 질문과 관련이 있나요? '참' 또는 '거짓'으로만 답변하세요.")
+        ])
+        
+        # 관련성 평가 실행
+        try:
+            response = relevance_prompt | llm | StrOutputParser()
+            result = response.invoke({}).strip().lower()
+            
+            # '참'인 경우에만 필터링된 문서 목록에 추가
+            if result == '참':
+                filtered_docs.append(doc)
+        except Exception as e:
+            # 오류 발생시 기본적으로 포함 (필터링 실패하더라도 검색 결과는 제공)
+            print(f"문서 관련성 평가 중 오류 발생: {e}")
+    print("필터되기 후:", len(filtered_docs))
+    return filtered_docs
+
 # 다중 검색 실행
-def retrieve_with_steps(multi_queries):
+def retrieve_with_steps(multi_queries, original_query):
     retriever = get_retriever()
     all_docs = []
     seen_docs = set()
@@ -79,13 +113,16 @@ def retrieve_with_steps(multi_queries):
     for q in multi_queries:
         if q.strip():  # 비어있지 않은 쿼리에 대해서만 실행
             docs = retriever.invoke(q)
-            for doc in docs:
+            for doc in docs[:1]:
                 if doc.page_content not in seen_docs:
                     seen_docs.add(doc.page_content)
                     all_docs.append(doc)
     
     # 검색 결과에 조리순서 추가
     enhanced_docs = add_cooking_steps(all_docs)
+
+    # LLM을 사용하여 관련성 평가 및 필터링
+    enhanced_docs = filter_relevant_docs(enhanced_docs, original_query)
     
     # 문서 내용을 하나의 문자열로 합치기
     context_text = "\n\n---\n\n".join([doc.page_content for doc in enhanced_docs])
@@ -103,8 +140,46 @@ def convert_messages(message_history):
             chat_history.append(AIMessage(content=msg["content"]))
     return chat_history
 
+# 대화 요약을 위한 함수 추가
+def summarize_conversation(chat_history, llm):
+    # 요약을 위한 프롬프트 작성
+    summarize_prompt = ChatPromptTemplate.from_messages([
+        ("system", """당신은 대화 내용을 명확하고 간결하게 요약하는 AI 어시스턴트입니다.
+        제공된 대화 기록을 분석하여 다음 정보를 포함하는 요약을 작성하세요:
+        1. 사용자가 찾고 있는 레시피 유형
+        2. 사용자가 언급한 재료, 좋아하는 재료
+        3. 사용자가 싫어하는 재료
+        4. 특별한 제약 조건(조리 시간, 사용 가능한 도구 등)
+        
+        핵심적인 정보만 포함하여 200자 이내로 간결하게 요약하세요."""),
+        ("human", "다음 대화 내용을 요약해주세요:\n{conversation}")
+    ])
+    
+    # 대화 내용을 텍스트로 변환
+    conversation_text = ""
+    for msg in chat_history:
+        if isinstance(msg, HumanMessage):
+            conversation_text += f"사용자: {msg.content}\n"
+    
+    # 요약 실행
+    summarize_chain = summarize_prompt | llm | StrOutputParser()
+    try:
+        summary = summarize_chain.invoke({"conversation": conversation_text})
+        return summary
+    except Exception as e:
+        print(f"대화 요약 중 오류 발생: {e}")
+        return ""
+
 # 전역 대화 히스토리 저장소 추가
 chat_histories = {}
+# 이전 검색 결과와 대화 요약을 저장할 딕셔너리
+past_contexts = {}
+conversation_summaries = {}
+
+# 최신 대화 요약을 가져오는 함수
+def get_updated_summary(input_dict):
+    session_id = input_dict.get("session_id", "default")
+    return conversation_summaries.get(session_id, "아직 대화 요약이 없습니다.")
 
 # 레시피 RAG 체인 생성
 def create_rag_chain(llm_model, cooking_time=None, cooking_tools=None):
@@ -132,6 +207,8 @@ def create_rag_chain(llm_model, cooking_time=None, cooking_tools=None):
         - Clearly state the cooking time and tools used in each step.
         - Use traditional Korean cooking techniques (e.g., stir-frying, simmering, steaming).
         - Ensure the instructions are very detailed and easy to follow.
+        - 이전 문맥(past_contexts)에 있는 정보도 답변에 활용하세요.
+        - 대화 요약(conversation_summary)을 참고하여 사용자의 전체적인 요구사항과 맥락을 이해하세요.
 
         ### Example Format:
         요리명: 김치볶음밥\n
@@ -166,10 +243,11 @@ def create_rag_chain(llm_model, cooking_time=None, cooking_tools=None):
     if cooking_tools and len(cooking_tools) > 0:
         system_message += f"\n#사용 가능한 조리 도구: {', '.join(cooking_tools)}"
     
+    # 이전 컨텍스트와 대화 요약을 프롬프트에 포함
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_message),
         ("placeholder", "{chat_history}"),
-        ("human", "문맥(Context): {context}\n\n질문: {question}\
+        ("human", "이전 대화 요약(conversation_summary): {conversation_summary}\n\n이전 문맥(past_contexts): {past_contexts}\n\n현재 문맥(Context): {context}\n\n질문: {question}\
             위 질문에 대해 **요리명을 먼저 얘기하고, 도구, 조리 시간, 재료를 단계별로 포함하여 한국어로 작성**해 주세요.\
             반드시 요리순서나 요리과정에만 번호를 붙여서 구체적으로 알려주세요.\
             요리명, 도구, 조리 시간, 재료, 요리순서를 종합적으로 잘 정리해서 구체적으로 답변해주세요."
@@ -178,17 +256,58 @@ def create_rag_chain(llm_model, cooking_time=None, cooking_tools=None):
     
     # 검색 함수 정의
     def retrieve_context(input_dict):
-        query = input_dict["question"]
+        session_id = input_dict.get("session_id", "default")
+        current_query = input_dict["question"]
+        chat_history = input_dict.get("chat_history", [])
+        # 임시 대화 기록에 현재 질문 추가
+        temp_chat_history = chat_history.copy()
+        temp_chat_history.append(HumanMessage(content=current_query))
+        
+        # 대화 요약 생성/업데이트 (현재 질문 포함)
+        if len(temp_chat_history) > 0:
+            conversation_summaries[session_id] = summarize_conversation(temp_chat_history, llm)
+        print("conversation_summaries:", conversation_summaries)
+        # 대화 기록에서 사용자 질문 추출
+        user_questions = []
+        
+        # 대화 기록에서 사용자 메시지 추출
+        for message in chat_history:
+            if isinstance(message, HumanMessage):
+                user_questions.append(message.content)
+        
+        # 현재 질문 추가
+        user_questions.append(current_query)
+        
+        # 모든 사용자 질문을 하나의 문자열로 결합
+        combined_query = "\n- ".join(user_questions)
+        
         # 다중 쿼리 생성 후 각각에 대해 검색 실행
-        multi_queries = multi_query_chain.invoke(query).strip().split("\n")
-        return retrieve_with_steps(multi_queries)
+        multi_queries = multi_query_chain.invoke(current_query).strip().split("\n")
+        
+        # 검색 결과 가져오기
+        current_context = retrieve_with_steps(multi_queries, combined_query)
+        
+        # 세션별 이전 컨텍스트 업데이트
+        if session_id not in past_contexts:
+            past_contexts[session_id] = []
+        
+        # 현재 컨텍스트를 이전 컨텍스트 목록에 추가 (너무 길어지지 않게 최근 2개만 유지)
+        past_contexts[session_id].append(current_context)
+        if len(past_contexts[session_id]) > 2:
+            past_contexts[session_id] = past_contexts[session_id][-2:]
+        
+        return current_context
     
     # 기본 RAG 체인 구성
     base_chain = (
         {
             "context": RunnableLambda(retrieve_context),
             "question": lambda x: x["question"],
-            "chat_history": lambda x: x["chat_history"]
+            "chat_history": lambda x: x["chat_history"],
+            "past_contexts": lambda x: "\n\n===PREVIOUS CONTEXT===\n\n".join(
+                past_contexts.get(x.get("session_id", "default"), [])
+            ),
+            "conversation_summary": RunnableLambda(get_updated_summary)
         }
         | prompt
         | llm
@@ -204,7 +323,7 @@ def create_rag_chain(llm_model, cooking_time=None, cooking_tools=None):
     # 대화 기록을 관리하는 체인으로 변환
     rag_chain = RunnableWithMessageHistory(
         base_chain,
-        get_chat_history,  # 수정된 부분
+        get_chat_history,
         input_messages_key="question",
         history_messages_key="chat_history",
     )

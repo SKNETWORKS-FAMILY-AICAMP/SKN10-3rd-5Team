@@ -7,6 +7,7 @@ from common.ask import ask
 
 
 def app():
+    st.set_page_config(layout="centered")
     init()
     st.title("Chatbot")
 

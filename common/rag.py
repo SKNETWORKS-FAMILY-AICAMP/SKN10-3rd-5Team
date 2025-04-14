@@ -8,6 +8,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain.memory import ChatMessageHistory
 import pandas as pd
 from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 
 # 원본 데이터프레임을 전역 변수로 저장
 original_df = pd.read_csv("./etl/rag/dataset/recipe_data.csv")
@@ -113,7 +114,7 @@ def retrieve_with_steps(multi_queries, original_query):
     for q in multi_queries:
         if q.strip():  # 비어있지 않은 쿼리에 대해서만 실행
             docs = retriever.invoke(q)
-            for doc in docs[:1]:
+            for doc in docs[:2]:
                 if doc.page_content not in seen_docs:
                     seen_docs.add(doc.page_content)
                     all_docs.append(doc)
@@ -201,40 +202,33 @@ def create_rag_chain(llm_model, cooking_time=None, cooking_tools=None):
 
         - Recommend a specific traditional Korean dish that uses the given ingredients.
         - Include a brief introduction to the dish.
-        - List all ingredients with accurate amounts (e.g., grams, ml, 개).
+        - List all ingredients with accurate amounts (e.g., grams, ml, pieces).
         - List all required cooking tools.
         - Provide step-by-step cooking instructions in numbered format (1, 2, 3, ...).
         - Clearly state the cooking time and tools used in each step.
         - Use traditional Korean cooking techniques (e.g., stir-frying, simmering, steaming).
         - Ensure the instructions are very detailed and easy to follow.
-        - 이전 문맥(past_contexts)에 있는 정보도 답변에 활용하세요.
-        - 대화 요약(conversation_summary)을 참고하여 사용자의 전체적인 요구사항과 맥락을 이해하세요.
+        - Utilize information from the previous context (past_contexts) in the response.
+        - Refer to the conversation summary (conversation_summary) to understand the user's overall requirements and context.
 
-        ### Example Format:
-        요리명: 김치볶음밥\n
+        **# Example Format**:
+        Dish Name: [Dish Name]
+        Brief Description: [Brief dish description]
+        Required Ingredients:
+        - [Ingredient 1]
+        - [Ingredient 2] 
+        Required Cooking Tools:
+        - [Cooking Tool 1] 
+        - [Cooking Tool 2]
+        Cooking Steps:
+        1. [Cooking Step 1] 
+        2. [Cooking Step 2] 
+        3. [Cooking Step 3] 
+        4. [Cooking Step 4] 
 
-        간단 설명: 남은 김치와 밥으로 간편하게 만드는 대표적인 한식 볶음밥입니다.\n
-
-        필요한 재료:
-        - 김치 100g
-        - 밥 1공기
-        - 대파 1/2대
-        - 식용유 1큰술
-        - 간장 1작은술
-        \n
-        필요한 조리도구:
-        - 프라이팬
-        - 주걱
-        \n
-        조리 순서:
-        1. 프라이팬에 식용유 1큰술을 두르고 중불로 달군 후, 송송 썬 대파를 넣고 1분간 볶아 파기름을 냅니다.
-        2. 김치 100g을 넣고 2분간 더 볶아줍니다.
-        3. 밥 1공기를 넣고 간장 1작은술을 둘러 3분간 볶습니다.
-        4. 불을 끄고 접시에 담아 완성합니다.
-
-        **답변은 반드시 한글로 작성해 주세요.**
+        **Please ensure your response strictly follows the Example Format. Additionally, the response must be in Korean.**
     """
-    
+
     # 조리 시간 제약 추가
     if cooking_time:
         system_message += f"\n#조리 시간: {cooking_time}"
@@ -247,11 +241,14 @@ def create_rag_chain(llm_model, cooking_time=None, cooking_tools=None):
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_message),
         ("placeholder", "{chat_history}"),
-        ("human", "이전 대화 요약(conversation_summary): {conversation_summary}\n\n이전 문맥(past_contexts): {past_contexts}\n\n현재 문맥(Context): {context}\n\n질문: {question}\
-            위 질문에 대해 **요리명을 먼저 얘기하고, 도구, 조리 시간, 재료를 단계별로 포함하여 한국어로 작성**해 주세요.\
-            반드시 요리순서나 요리과정에만 번호를 붙여서 구체적으로 알려주세요.\
-            요리명, 도구, 조리 시간, 재료, 요리순서를 종합적으로 잘 정리해서 구체적으로 답변해주세요."
-        )
+        ("human", """
+        이전 대화 요약(conversation_summary): {conversation_summary}\n
+        이전 문맥(past_contexts): {past_contexts}\n
+        현재 문맥(Context): {context}\n
+        질문: {question}\n
+        
+        위 질문에 대해 **반드시 조리순서, 도구, 조리 시간, 재료를 단계별로 포함하여 한국어로 작성**해 주세요.
+        """)
     ])
     
     # 검색 함수 정의

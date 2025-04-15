@@ -9,6 +9,7 @@ from langchain.memory import ChatMessageHistory
 import pandas as pd
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
+from langchain_community.retrievers import TavilySearchAPIRetriever
 
 # 원본 데이터프레임을 전역 변수로 저장
 original_df = pd.read_csv("./etl/rag/dataset/recipe_data.csv")
@@ -143,6 +144,35 @@ def retrieve_with_steps(multi_queries, original_query):
 
     # LLM을 사용하여 관련성 평가 및 필터링
     enhanced_docs = filter_relevant_docs(enhanced_docs, original_query)
+
+    # 내부 문서 검색 결과가 없는 경우 Tavily 검색 수행
+    if len(enhanced_docs) == 0:
+        print("내부 문서 검색 결과 없음: Tavily 외부 검색 실행")
+        try:
+            # Tavily 검색 리트리버 초기화
+            tavily_retriever = TavilySearchAPIRetriever(k=3)
+            external_docs = []
+            
+            # 다중 쿼리로 Tavily 검색 실행
+            for q in multi_queries:
+                if q.strip():
+                    try:
+                        docs = tavily_retriever.invoke(q)
+                        for doc in docs:
+                            if doc.page_content not in seen_docs:
+                                seen_docs.add(doc.page_content)
+                                content = doc.page_content
+                                source = doc.metadata["source"]
+                                doc.page_content = content + "\n출처: " + source + "\n----------------------\n"
+                                external_docs.append(doc)
+                    except Exception as e:
+                        print(f"Tavily 검색 중 오류 발생: {e}")
+            
+            # 외부 문서도 관련성 필터링 적용
+            enhanced_docs = filter_relevant_docs(external_docs, original_query)
+            print(f"Tavily 검색 결과: {len(enhanced_docs)}개 문서 찾음")
+        except Exception as e:
+            print(f"Tavily 검색 설정 중 오류 발생: {e}")
     
     # 문서 내용을 하나의 문자열로 합치기
     context_text = "\n\n---\n\n".join([doc.page_content for doc in enhanced_docs])

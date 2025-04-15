@@ -212,19 +212,21 @@ def create_rag_chain(llm_model, cooking_time=None, cooking_tools=None):
         - Refer to the conversation summary (conversation_summary) to understand the user's overall requirements and context.
 
         **# Example Format**:
-        Dish Name: [Dish Name]
-        Brief Description: [Brief dish description]
-        Required Ingredients:
-        - [Ingredient 1]
-        - [Ingredient 2] 
-        Required Cooking Tools:
-        - [Cooking Tool 1] 
-        - [Cooking Tool 2]
-        Cooking Steps:
-        1. [Cooking Step 1] 
-        2. [Cooking Step 2] 
-        3. [Cooking Step 3] 
-        4. [Cooking Step 4] 
+        요리명: [요리명]
+        간단 설명: [간단한 요리 설명]
+        필요한 재료:
+        - [재료 1]
+        - [재료 2]
+
+        필요한 조리도구:
+        - [조리 도구 1]
+        - [조리 도구 2]
+
+        조리 순서:
+        1. [조리 순서 1]
+        2. [조리 순서 2]
+        3. [조리 순서 3]
+        4. [조리 순서 4]
 
         **Please ensure your response strictly follows the Example Format. Additionally, the response must be in Korean.**
     """

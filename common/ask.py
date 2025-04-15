@@ -137,6 +137,7 @@ def get_response_from_llm(message_history, cooking_time, cooking_tools, session_
         yield chunk.content
         time.sleep(0.05)
 
+'''
 def ask(question, message_history, cooking_time=None, cooking_tools=None, llm_model=None):
   if len(message_history) == 0:
     # 최초 시스템 프롬프트
@@ -183,3 +184,74 @@ def ask(question, message_history, cooking_time=None, cooking_tools=None, llm_mo
   message_history = add_history(message_history, role="assistant", content=response)
 
   return message_history
+'''
+def ask(question, message_history, cooking_time=None, cooking_tools=None, llm_model=None):
+    import time
+    from datetime import datetime
+
+    # 시스템 프롬프트 초기화 (기존 코드 유지)
+    if len(message_history) == 0:
+        message_history.append({
+            "role": "system", 
+            "content": """당신은 요리 레시피와 조리 방법을 제공하는 AI입니다. [...]"""
+        })
+
+    # 사용자 질문 추가 (기존 코드 유지)
+    message_history = add_history(message_history, role="user", content=question)
+    write_chat(role="user", message=message_history[-1]["content"])
+
+    # 진행률 컴포넌트 생성
+    progress_bar = st.progress(0, text="초기화 중...")
+    percent_text = st.empty()
+    time_text = st.empty()
+    start_time = datetime.now()
+
+    try:
+        # 진행률 업데이트 함수
+        def update_progress(step: int, total_steps: int = 5):
+            elapsed = (datetime.now() - start_time).total_seconds()
+            percent = int((step / total_steps) * 100)
+            
+            progress_bar.progress(
+                percent, 
+                text=f"{step}/{total_steps} 단계 진행 중"
+            )
+            percent_text.markdown(f"**진행률: {percent}%**")
+            time_text.markdown(f"""
+                ⏱️ 경과 시간: `{elapsed:.1f}초`  
+                🕒 예상 시간: `{(elapsed/percent*100 if percent>0 else 0):.1f}초`
+            """)
+
+        # 1. 세션 ID 생성 단계
+        if "session_id" not in st.session_state:
+            import uuid
+            st.session_state.session_id = str(uuid.uuid4())
+        update_progress(1)
+
+        # 2. LLM 응답 생성 단계
+        with st.spinner("요리 레시피를 생성 중입니다..."):
+            update_progress(2)
+            response = write_chat(
+                role="assistant",
+                message=get_response_from_llm(
+                    message_history, 
+                    cooking_time, 
+                    cooking_tools, 
+                    st.session_state.session_id, 
+                    llm_model
+                )
+            )
+            update_progress(4)
+
+        # 3. 메시지 히스토리 업데이트
+        message_history = add_history(message_history, role="assistant", content=response)
+        update_progress(5)
+
+    finally:
+        # 진행률 컴포넌트 정리
+        time.sleep(0.5)  # 시각적 완료 효과
+        progress_bar.empty()
+        percent_text.empty()
+        time_text.empty()
+
+    return message_history

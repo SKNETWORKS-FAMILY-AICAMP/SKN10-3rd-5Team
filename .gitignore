@@ -1,0 +1,12 @@
+.venv
+.env
+__pycache__
+
+etl/download
+etl/fine-tuning/local_model_1
+etl/fine-tuning/local_model_2
+etl/fine-tuning/dataset
+etl/fine-tuning/preprocessed_csv
+etl/rag/dataset/recipe_faiss
+etl/rag/dataset/recipe_faiss/index.faiss
+etl/rag/dataset/recipe_faiss/index.pkl

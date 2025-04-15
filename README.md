@@ -72,7 +72,7 @@
 
 ## 5. 데이터 소스
 
-### 유튜브 자막 기반
+### Fine-Tuning - 유튜브 자막 기반
 - [딸을 위한 레시피 유튜브](https://www.youtube.com/@%EB%94%B8%EC%9D%84%EC%9C%84%ED%95%9C%EB%A0%88%EC%8B%9C%ED%94%BC/playlists)
 - [백종원의 요리비책](https://www.youtube.com/playlist?list=PLoABXt5mipg4vxLw0NsRQLDDVBpOkshzF)
 - [백종원의 쿠킹로그](https://www.youtube.com/watch?v=5-a5CPASYBc&list=PLoABXt5mipg6mIdGKBuJlv5tmQFAQ3OYr)
@@ -80,6 +80,11 @@
 ](https://www.youtube.com/playlist?list=PL7T0UWXKNl7TXa5t6I2qJ6vWtJhTSpRyt)
 
 📌 해당 채널들은 자막 품질이 비교적 우수하거나 실제 요리 흐름이 잘 기록되어 있다.
+
+### RAG
+- [만개의 레시피](https://www.10000recipe.com/?srsltid=AfmBOoq_msLnwDaByNGMj6nSyX_i7IqxU3u43aEKLXwu5yqbxqN9foHs)
+
+📌 해당 사이트에서 필요한 정보를 `BeautifulSoup`을 통해 추출하여 사용하였다.
 
 <br>
 
@@ -264,7 +269,7 @@ ollama create gemma3-recipe -f Modelfile
 
 <br>
 
-# 이슈 및 해결방법
+## 11. 이슈 및 해결방법
 
 ### 1. Fine-Tuning + RAG
 
@@ -286,22 +291,28 @@ ollama create gemma3-recipe -f Modelfile
 
 <br>
 
-# 회고
+## 12. 회고
 
 ### 최수헌
 
+- 
 
 ### 문승기
 
+- 
 
 ### 이유호
 
+- 
 
 ### 전서빈
 
+- 
 
 ### 좌민서
 
+- 
 
 ### 홍승표
 
+- 

@@ -103,6 +103,7 @@ def get_response_from_llm(message_history, cooking_time, cooking_tools, session_
   user_message = message_history[-1]["content"]
 
   if is_cooking_related_question_groq(user_message):
+    st.toast("요리 레시피를 생각하는 중...", icon="👨‍🍳")
     # RAG 체인을 사용하여 레시피 답변 생성
     if llm_model is None:
       llm_model = get_llm_model()
@@ -138,6 +139,7 @@ def get_response_from_llm(message_history, cooking_time, cooking_tools, session_
         yield char
         time.sleep(0.05)  # 약간의 지연을 주어 스트리밍 효과를 준다
     else:
+      st.toast("다른 요리 레시피를 참고하는 중...", icon="👨‍🍳")
       rag_chain = create_rag_chain(groq_llm, cooking_time, cooking_tools)
 
       # 스트리밍 응답 생성
@@ -149,6 +151,7 @@ def get_response_from_llm(message_history, cooking_time, cooking_tools, session_
         time.sleep(0.05)
 
   else:
+    st.toast("적절한 질문을 생각하는 중...", icon="👨‍🍳")
     # ✅ 일반 질문일 경우 → Groq GPT 직접 응답
     messages = [SystemMessage(content="친절한 요리 AI 어시스턴트입니다. 반드시 한국어로 답하세요.")] + [
       HumanMessage(content=msg["content"]) if msg["role"] == "user" else

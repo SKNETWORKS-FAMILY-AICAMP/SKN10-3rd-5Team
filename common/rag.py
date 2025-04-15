@@ -10,6 +10,7 @@ import pandas as pd
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 from langchain_community.retrievers import TavilySearchAPIRetriever
+import streamlit as st
 
 # 원본 데이터프레임을 전역 변수로 저장
 original_df = pd.read_csv("./etl/rag/dataset/recipe_data.csv")
@@ -132,6 +133,7 @@ def retrieve_with_steps(multi_queries, original_query):
 
     # 내부 문서 검색 결과가 없는 경우 Tavily 검색 수행
     if len(enhanced_docs) == 0:
+        st.toast("인터넷을 검색하는 중...", icon="👨‍🍳")
         print("내부 문서 검색 결과 없음: Tavily 외부 검색 실행")
         try:
             # Tavily 검색 리트리버 초기화

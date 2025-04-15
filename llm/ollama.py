@@ -19,8 +19,7 @@ class Provider_Ollama(Provider):
         llm = ChatOllama(
             model=self.provider_LLMs[model_name].value[1],
             model_kwargs={
-                            "max_tokens": 1000,
-                            "temperature": 0.7
+                            "max_tokens": 1000
                         }
         )
         return llm

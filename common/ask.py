@@ -10,6 +10,7 @@ from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_openai import ChatOpenAI
 
 # Groq LLM 초기화
 groq_llm = ChatGroq(model_name="gemma2-9b-it")  # 너가 쓰는 모델로 변경 가능
@@ -50,17 +51,41 @@ def filter_relevant_respond(respond, query):
     """LLM을 사용하여 검색된 문서의 관련성을 평가하고 필터링합니다."""
     # 필터링을 위한 LLM 초기화 (같은 모델 재사용 가능)
     
+    llm_gpt = ChatOpenAI(
+                model_name="gpt-4o-mini",
+                temperature=0.5,
+                max_tokens=300,
+              )
     # 관련성 평가를 위한 프롬프트
     relevance_prompt = ChatPromptTemplate.from_messages([
         ("system", """당신은 검색 결과의 관련성을 평가하는 AI 어시스턴트입니다.
         생성된 답변이 사용자의 질문에 적절한 답변인지 판단해야 합니다.
-        관련성이 높으면 '참'만 답변하고, 관련성이 낮거나 없으면 '거짓'만 답변하세요."""),
-        ("human", f"사용자 질문: {query}\n\n생성된 답변: {respond}\n\n이 답변은은 사용자 질문과 관련이 있나요? '참' 또는 '거짓'으로만 답변하세요.")
+        또한, 답변은 반드시 **예시 형식**에 맞게 작성되어야 합니다:
+        
+        **예시 형식**:
+        요리명: [요리명]
+        간단 설명: [간단한 요리 설명]
+        필요한 재료:
+        - [재료 1]
+        - [재료 2]
+        필요한 조리 도구:
+        - [조리 도구 1]
+        - [조리 도구 2]
+        조리 순서:
+        1. [조리 순서 1]
+        2. [조리 순서 2]
+        3. [조리 순서 3]
+        4. [조리 순서 4]
+        
+        만약 생성된 답변이 이 **예시 형식**에 맞고 사용자의 질문과 관련이 있다면 '참'을 답변하세요.
+        만약 생성된 답변이 형식에 맞지 않거나 질문과 관련이 없다면 '거짓'만 답변하세요.
+        """),
+        ("human", f"사용자 질문: {query}\n\n생성된 답변: {respond}\n\n이 답변은 예시 형식에 맞고 사용자 질문과 관련이 있나요? '참' 또는 '거짓'으로만 답변하세요.")
     ])
     
     # 관련성 평가 실행
     try:
-        response = relevance_prompt | groq_llm | StrOutputParser()
+        response = relevance_prompt | llm_gpt | StrOutputParser()
         result = response.invoke({}).strip().lower()
         
         # '참'인 경우에만 필터링된 문서 목록에 추가
@@ -141,30 +166,28 @@ def ask(question, message_history, cooking_time=None, cooking_tools=None, llm_mo
   if len(message_history) == 0:
     # 최초 시스템 프롬프트
     message_history.append({
-            "role": "system", 
-            "content": """당신은 요리 레시피와 조리 방법을 제공하는 AI입니다. 주어진 재료를 바탕으로 다음과 같은 형식에 맞는 레시피와 조리 방법을 제공해야 합니다.
-                1. **요리명**: 요리의 이름을 명확하게 작성해주세요.
-                2. **간단 설명**: 요리에 대한 간단한 설명을 작성해주세요.
-                3. **필요한 재료**: 요리에 필요한 재료를 정확한 양과 함께 나열해주세요. (예: 그램, ml, 개 단위)
-                4. **필요한 조리 도구**: 요리에 필요한 조리 도구를 나열해주세요.
-                5. **조리 순서**: 조리 순서를 1, 2, 3, 4 ... 형태로 나열해주세요. 각 순서마다 어떤 도구와 재료를 사용할지, 조리 시간을 구체적으로 적어주세요.
-                **예시 형식**:
-                요리명: [요리명]
-                간단 설명: [간단한 요리 설명]
-                필요한 재료:
-                - [재료 1] 
-                - [재료 2] 
-                필요한 조리 도구:
-                - [조리 도구 1] 
-                - [조리 도구 2] 
-                조리 순서:
-                1. [조리 순서 1] 
-                2. [조리 순서 2] 
-                3. [조리 순서 3] 
-                4. [조리 순서 4] 
-                **반드시 위의 예시 형식을 지켜주세요. 모든 답변은 한글로 작성해야 하며, 줄글 형식이 아닌 단계별로 나열된 답변이어야 합니다.**
-            """
+        "role": "system", 
+        "content": """
+        당신은 요리 레시피와 조리 방법을 제공하는 AI입니다. 주어진 재료를 바탕으로 정확한 형식에 맞는 레시피와 조리 방법을 제공합니다. 
+        반드시 다음 형식에 맞게 답변해주세요:
+
+        #Example Format:
+        (간단한 요리 설명)
+
+        | 항목          | 내용                                      |
+        | ------------- | ----------------------------------------- |
+        | **요리명**    | [요리명 1]                                  |
+        | **간단 설명** | [간단한 요리 설명 1]                        |
+        | **필요한 재료** | [재료 1], [재료 2], [재료 3] (예: 그램, ml, 개 단위) |
+        | **필요한 조리 도구** | [조리 도구 1], [조리 도구 2]              |
+        | **조리 순서** | 1. [조리 순서 1] <br> 2. [조리 순서 2] <br> 3. [조리 순서 3] <br> 4. [조리 순서 4] |
+
+        **답변은 반드시 위의 예시 형식을 지켜야 하며, 모든 답변은 한글로 작성되어야 합니다. 줄글 형식은 절대 허용되지 않습니다.**
+        """
     })
+
+
+
 
   # 사용자 질문 추가 및 즉시 표시
   message_history = add_history(message_history, role="user", content=question)

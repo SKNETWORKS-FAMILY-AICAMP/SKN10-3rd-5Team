@@ -77,42 +77,27 @@ def filter_relevant_docs(docs, query):
         return []
     print("필터되기 전:", len(docs))
     # 필터링을 위한 LLM 초기화 (같은 모델 재사용 가능)
-    llm = ChatGroq(model_name="llama-3.3-70b-versatile")
-    # llm = ChatOpenAI(
-    #     model="gpt-4o-mini",
-    #     temperature=0.7,
-    #     max_tokens=500
-    # )
-    
+    # llm = ChatGroq(model_name="gemma2-9b-it")
+    llm_gpt = ChatOpenAI(
+                model_name="gpt-4o-mini",
+                temperature=0.5,
+                max_tokens=300,
+            )
     filtered_docs = []
     
     for doc in docs:
         # 관련성 평가를 위한 프롬프트
-        # relevance_prompt = ChatPromptTemplate.from_messages([
-        #     ("system", """당신은 검색 결과의 관련성을 평가하는 AI 어시스턴트입니다.
-        #     사용자의 질문과 검색된 레시피 문서가 주어집니다.
-        #     문서가 사용자의 질문 또는 의도와 관련이 있는지 판단해야 합니다.
-        #     또한, 요리명, 간단 설명, 필요한 재료 목록, 조리 도구 목록이 출력되어야 하고, 조리 순서는 단계별로 작성되어 있는지 판단해야 합니다.
-        #     관련성이 높고, 요리명, 설명, 도구, 재료, 조리 순서가 단계적이라면면 '참'만 답변하고, 그렇지 않다면 '거짓'만 답변하세요."""),
-        #     ("human", f"사용자 질문: {query}\n\n검색된 문서: {doc.page_content}\n\n이 문서는 사용자 질문과 관련이 있나요? '참' 또는 '거짓'으로만 답변하세요.")
-        # ])
         relevance_prompt = ChatPromptTemplate.from_messages([
             ("system", """당신은 검색 결과의 관련성을 평가하는 AI 어시스턴트입니다.
             사용자의 질문과 검색된 레시피 문서가 주어집니다.
             문서가 사용자의 질문 또는 의도와 관련이 있는지 판단해야 합니다.
-            또한, 요리명, 간단 설명, 필요한 재료 목록, 조리 도구 목록이 출력되어야 하고, 조리 순서는 단계별로 작성되어 있는지 판단해야 합니다.
-            **요리명**, **간단 설명**, **필요한 재료 목록**, **조리 도구 목록**, **단계별 조리 순서**가 포함되어야 합니다.
-            - 재료 목록: 재료와 그 양이 명시되어야 합니다.
-            - 조리 도구 목록: 필요한 도구가 나와야 합니다.
-            - 조리 순서는 명확하게 1, 2, 3과 같은 형태로 단계별로 설명되어야 합니다.
-            만약 위 사항들이 모두 충족되지 않으면 '거짓'이라고 답변하세요. 그렇지 않으면 '참'이라고 답변하세요."""),
-            
+            관련성이 높으면 '참'만 답변하고, 관련성이 낮거나 없으면 '거짓'만 답변하세요."""),
             ("human", f"사용자 질문: {query}\n\n검색된 문서: {doc.page_content}\n\n이 문서는 사용자 질문과 관련이 있나요? '참' 또는 '거짓'으로만 답변하세요.")
         ])
         
         # 관련성 평가 실행
         try:
-            response = relevance_prompt | llm | StrOutputParser()
+            response = relevance_prompt | llm_gpt | StrOutputParser()
             result = response.invoke({}).strip().lower()
             
             # '참'인 경우에만 필터링된 문서 목록에 추가
@@ -246,8 +231,37 @@ def create_rag_chain(llm_model, cooking_time=None, cooking_tools=None):
     
     # 조리 시간과 도구를 포함한 프롬프트 템플릿
     system_message = """
-        반드시 요리명, 간단 설명, 필요한 재료 목록, 조리 도구 목록을 줄바꿈을 넣어가며 작성해 주세요.
-        반드시 조리 순서는 구체적으로 단계별로 작성해 주세요.
+        You are tasked with creating a recipe and detailed cooking instructions based on the ingredients provided.
+        The recipe should:
+
+        - Recommend a specific traditional Korean dish that uses the given ingredients.
+        - Include a brief introduction to the dish.
+        - List all ingredients with accurate amounts (e.g., grams, ml, pieces).
+        - List all required cooking tools.
+        - Provide step-by-step cooking instructions in numbered format (1, 2, 3, ...).
+        - Clearly state the cooking time and tools used in each step.
+        - Use traditional Korean cooking techniques (e.g., stir-frying, simmering, steaming).
+        - Ensure the instructions are very detailed and easy to follow.
+        - Utilize information from the previous context (past_contexts) in the response.
+        - Refer to the conversation summary (conversation_summary) to understand the user's overall requirements and context.
+
+        **# Example Format**:
+        요리명: [요리명]
+        간단 설명: [간단한 요리 설명]
+        필요한 재료:
+        - [재료 1]
+        - [재료 2]
+
+        필요한 조리도구:
+        - [조리 도구 1]
+        - [조리 도구 2]
+
+        조리 순서:
+        1. [조리 순서 1]
+        2. [조리 순서 2]
+        3. [조리 순서 3]
+        4. [조리 순서 4]
+
         **Please ensure your response strictly follows the Example Format. Additionally, the response must be in Korean.**
     """
 

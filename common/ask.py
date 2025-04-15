@@ -151,7 +151,7 @@ def get_response_from_llm(message_history, cooking_time, cooking_tools, session_
         time.sleep(0.05)
 
   else:
-    st.toast("적절한 질문을 생각하는 중...", icon="👨‍🍳")
+    st.toast("적절한 답변을 생각하는 중...", icon="👨‍🍳")
     # ✅ 일반 질문일 경우 → Groq GPT 직접 응답
     messages = [SystemMessage(content="친절한 요리 AI 어시스턴트입니다. 반드시 한국어로 답하세요.")] + [
       HumanMessage(content=msg["content"]) if msg["role"] == "user" else

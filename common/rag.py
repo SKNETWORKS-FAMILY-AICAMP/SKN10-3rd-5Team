@@ -120,9 +120,10 @@ def retrieve_with_steps(multi_queries, original_query):
     for q in multi_queries:
         if q.strip():  # 비어있지 않은 쿼리에 대해서만 실행
             docs = retriever.invoke(q)
-            for doc in docs[:2]:
+            for doc in docs[:1]:
                 if doc.page_content not in seen_docs:
                     seen_docs.add(doc.page_content)
+                    doc.page_content = doc.page_content + "\n출처: " + "https://www.10000recipe.com/recipe/" + doc.page_content.split("시피ID: ")[1] + "\n----------------------\n"
                     all_docs.append(doc)
     
     # 검색 결과에 조리순서 추가
@@ -263,8 +264,11 @@ def create_rag_chain(llm_model, cooking_time=None, cooking_tools=None):
         2. [조리 순서 2]
         3. [조리 순서 3]
         4. [조리 순서 4]
+        
+        출처:
 
         **Please ensure your response strictly follows the Example Format. Additionally, the response must be in Korean.**
+        **반드시 주어진 문서의 출처를 포함하세요**
     """
 
     # 조리 시간 제약 추가

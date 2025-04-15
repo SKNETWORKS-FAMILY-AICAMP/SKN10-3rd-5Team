@@ -12,10 +12,15 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 # Groq LLM 초기화
-groq_llm = ChatGroq(model_name="qwen-2.5-32b")  # 너가 쓰는 모델로 변경 가능
+groq_llm = ChatGroq(model_name="gemma2-9b-it")  # 너가 쓰는 모델로 변경 가능
 
 def is_cooking_related_question_groq(user_input):
-    system_prompt = "이 질문이 요리 레시피로 무엇을 만들 수 있냐는 질문이라면 '요리', 아니면 '일반'이라고만 정확하게 한 단어로 대답해줘. 반드시 한국어로."
+    # system_prompt = "이 질문이 요리 레시피로 무엇을 만들 수 있냐는 질문이라면 '요리', 아니면 '일반'이라고만 정확하게 한 단어로 대답해줘. 반드시 한국어로."
+    system_prompt = """
+      이 질문이 '요리 레시피', '레시피', 또는 '음식'과 관련된 질문이라면 '요리'라고만 정확하게 한 단어로 대답해 주세요.
+      만약 요리와 관련이 없다면 '일반'이라고만 정확하게 한 단어로 대답해 주세요.
+      예시: '달걀과 양파를 활용한 레시피를 추천해줘.' -> '요리'
+      """
     messages = [
         SystemMessage(content=system_prompt),
         HumanMessage(content=user_input)
@@ -44,7 +49,6 @@ def convert_messages(message_history):
 def filter_relevant_respond(respond, query):
     """LLM을 사용하여 검색된 문서의 관련성을 평가하고 필터링합니다."""
     # 필터링을 위한 LLM 초기화 (같은 모델 재사용 가능)
-    llm = ChatGroq(model_name="qwen-2.5-32b")
     
     # 관련성 평가를 위한 프롬프트
     relevance_prompt = ChatPromptTemplate.from_messages([
@@ -56,12 +60,12 @@ def filter_relevant_respond(respond, query):
     
     # 관련성 평가 실행
     try:
-        response = relevance_prompt | llm | StrOutputParser()
+        response = relevance_prompt | groq_llm | StrOutputParser()
         result = response.invoke({}).strip().lower()
         
         # '참'인 경우에만 필터링된 문서 목록에 추가
         if result == '참':
-            return False
+            return True
         else:
             return False
     except Exception as e:
@@ -109,8 +113,7 @@ def get_response_from_llm(message_history, cooking_time, cooking_tools, session_
         yield char
         time.sleep(0.05)  # 약간의 지연을 주어 스트리밍 효과를 준다
     else:
-      llm_model = ChatGroq(model_name="qwen-2.5-32b")
-      rag_chain = create_rag_chain(llm_model, cooking_time, cooking_tools)
+      rag_chain = create_rag_chain(groq_llm, cooking_time, cooking_tools)
 
       # 스트리밍 응답 생성
       for token in rag_chain.stream(
@@ -138,39 +141,29 @@ def ask(question, message_history, cooking_time=None, cooking_tools=None, llm_mo
   if len(message_history) == 0:
     # 최초 시스템 프롬프트
     message_history.append({
-        "role": "system", 
-        "content": """
-        You are tasked with creating a recipe and detailed cooking instructions based on the ingredients provided.
-        The recipe should:
-
-        - Recommend a specific traditional Korean dish that uses the given ingredients.
-        - Include a brief introduction to the dish.
-        - List all ingredients with accurate amounts (e.g., grams, ml, pieces).
-        - List all required cooking tools.
-        - Provide step-by-step cooking instructions in numbered format (1, 2, 3, ...).
-        - Clearly state the cooking time and tools used in each step.
-        - Use traditional Korean cooking techniques (e.g., stir-frying, simmering, steaming).
-        - Ensure the instructions are very detailed and easy to follow.
-        - Utilize information from the previous context (past_contexts) in the response.
-        - Refer to the conversation summary (conversation_summary) to understand the user's overall requirements and context.
-
-        **# Example Format**:
-        Dish Name: [Dish Name]
-        Brief Description: [Brief dish description]
-        Required Ingredients:
-        - [Ingredient 1]
-        - [Ingredient 2] 
-        Required Cooking Tools:
-        - [Cooking Tool 1] 
-        - [Cooking Tool 2]
-        Cooking Steps:
-        1. [Cooking Step 1] 
-        2. [Cooking Step 2] 
-        3. [Cooking Step 3] 
-        4. [Cooking Step 4] 
-
-        **Please ensure your response strictly follows the Example Format. Additionally, the response must be in Korean.**
-    """
+            "role": "system", 
+            "content": """당신은 요리 레시피와 조리 방법을 제공하는 AI입니다. 주어진 재료를 바탕으로 다음과 같은 형식에 맞는 레시피와 조리 방법을 제공해야 합니다.
+                1. **요리명**: 요리의 이름을 명확하게 작성해주세요.
+                2. **간단 설명**: 요리에 대한 간단한 설명을 작성해주세요.
+                3. **필요한 재료**: 요리에 필요한 재료를 정확한 양과 함께 나열해주세요. (예: 그램, ml, 개 단위)
+                4. **필요한 조리 도구**: 요리에 필요한 조리 도구를 나열해주세요.
+                5. **조리 순서**: 조리 순서를 1, 2, 3, 4 ... 형태로 나열해주세요. 각 순서마다 어떤 도구와 재료를 사용할지, 조리 시간을 구체적으로 적어주세요.
+                **예시 형식**:
+                요리명: [요리명]
+                간단 설명: [간단한 요리 설명]
+                필요한 재료:
+                - [재료 1] 
+                - [재료 2] 
+                필요한 조리 도구:
+                - [조리 도구 1] 
+                - [조리 도구 2] 
+                조리 순서:
+                1. [조리 순서 1] 
+                2. [조리 순서 2] 
+                3. [조리 순서 3] 
+                4. [조리 순서 4] 
+                **반드시 위의 예시 형식을 지켜주세요. 모든 답변은 한글로 작성해야 하며, 줄글 형식이 아닌 단계별로 나열된 답변이어야 합니다.**
+            """
     })
 
   # 사용자 질문 추가 및 즉시 표시

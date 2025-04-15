@@ -265,7 +265,7 @@ def create_rag_chain(llm_model, cooking_time=None, cooking_tools=None):
         3. [조리 순서 3]
         4. [조리 순서 4]
         
-        출처:
+        출처: [출처 링크]
 
         **Please ensure your response strictly follows the Example Format. Additionally, the response must be in Korean.**
         **반드시 주어진 문서의 출처를 포함하세요**

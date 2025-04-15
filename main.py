@@ -4,10 +4,10 @@ import streamlit as st
 def main():
     init()
 
-    st.set_page_config(page_title="🍳 재료 기반 요리 추천 챗봇", layout="wide")
+    st.set_page_config(page_title="🍳 요리왕 좌룡", layout="wide")
 
-    st.title("🍳 재료 기반 요리 레시피 추천 챗봇")
-    st.caption("당신의 냉장고 속 재료로 현실 가능한 요리를 추천해주는 AI")
+    st.title("요리왕 좌룡")
+    st.caption("재료 기반 요리 레시피 추천 챗봇 서비스")
 
     # -------------------
     # 서비스 개요
@@ -106,35 +106,20 @@ def main():
     st.header("4. 기술 구성 요소")
     st.subheader("\U0001F9D0 어떻게 동작하나요?")
 
-    col1, col2, col3 = st.columns(3)
+    st.markdown("""
+    #### 🧠 LLM 모델
+    - 파인튜닝 대상: gemma3-4b Model
 
-    with col1:
-        st.markdown("""
-        #### 🧠 LLM 모델
-        - 파인튜닝 대상: gemma3-4b Model
+    #### 🔍 검색 기반 QA (RAG 방식)
+    - 사용자 입력값(재료, 조리도구, 시간)을 기반으로 관련 자막을 검색
+    - 검색 결과를 LLM에 제공하여 맥락 이해 + 응답 생성
+                
+    #### 🧠  Embedding 모델
+    - OpenAI의 소형 embedding 모델 (텍스트 벡터화 용도)
 
-        #### 🔍 검색 기반 QA (RAG 방식)
-        - 사용자 입력값(재료, 조리도구, 시간)을 기반으로 관련 자막을 검색
-        - 검색 결과를 LLM에 제공하여 맥락 이해 + 응답 생성
-                    
-        #### 🧠  Embedding 모델
-        - OpenAI의 소형 embedding 모델 (텍스트 벡터화 용도)
-
-        #### 🔍 Vector DB
-        - FAISS 활용, 유사한 요리 레시피 클러스터링 및 검색        
-        """)
-
-    with col2:
-        st.markdown("""
-        #### ⚙️ 응답 평가 및 선택
-        - **응답 A**: LLM이 직접 생성
-        - **응답 B**: 검색(RAG) 기반 생성
-        - 두 결과를 GPT-4o-mini로 평가 → 더 나은 쪽 제공
-
-        #### 📦 Embedding + Vector DB
-        - OpenAI 임베딩 모델 사용 (소형)
-        - FAISS를 활용한 벡터 기반 유사도 검색
-        """)
+    #### 🔍 Vector DB
+    - FAISS 활용, 유사한 요리 레시피 클러스터링 및 검색        
+    """)
 
     st.divider()
 
@@ -142,7 +127,7 @@ def main():
     # 데이터 소스
     # -------------------
     st.header("5. 데이터 소스")
-    st.subheader("\U0001F4FD️ 유튜브 자막 기반 현실 레시피")
+    st.subheader("\U0001F4FD️ 유튜브 자막 기반 레시피")
 
     st.markdown("""
     📌신뢰도 높은 유튜브 채널 자막을 기반으로 Fine-tuning 및 검색 데이터셋을 구축했습니다:
@@ -161,8 +146,17 @@ def main():
 
     st.success("\U0001F916 당신의 냉장고 속 재료로, AI가 오늘의 저녁을 추천해드립니다!")
 
-    st.divider()
+    st.markdown("""
+    ### RAG
+    - [만개의 레시피](https://www.10000recipe.com/?srsltid=AfmBOoq_msLnwDaByNGMj6nSyX_i7IqxU3u43aEKLXwu5yqbxqN9foHs)
 
+    📌 해당 사이트에서 필요한 정보를 `BeautifulSoup`을 통해 추출하여 사용하였습니다.
+    """)
+
+    st.image("https://github.com/user-attachments/assets/64ac3945-098f-495e-8a59-69d5f44d078c")
+
+    st.divider()
+    
     # -------------------
     # 데이터셋
     # -------------------
